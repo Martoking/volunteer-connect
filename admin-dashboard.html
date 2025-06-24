@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard - Volunteer Connect</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body>
+  <div class="container mt-4">
+    <h2 class="text-center mb-4">Admin Dashboard</h2>
+
+    <div class="text-end mb-3">
+      <button onclick="logout()" class="btn btn-outline-danger btn-sm">Logout</button>
+    </div>
+
+    <!-- Volunteer Section -->
+    <div class="card mb-5">
+      <div class="card-header bg-primary text-white">Volunteers</div>
+      <div class="card-body">
+        <table class="table table-bordered" id="volunteersTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Skills</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="volunteersList"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Community Needs Section -->
+    <div class="card mb-5">
+      <div class="card-header bg-success text-white">Community Needs</div>
+      <div class="card-body">
+        <form id="needsForm" class="row g-3 mb-3">
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="title" placeholder="Title" required>
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="skills" placeholder="Required Skills (comma-separated)" required>
+          </div>
+          <div class="col-md-4">
+            <input type="date" class="form-control" id="date" required>
+          </div>
+          <div class="col-12 text-end">
+            <button type="submit" class="btn btn-success">Add Need</button>
+          </div>
+        </form>
+        <table class="table table-bordered" id="needsTable">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Skills</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="needsList"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+
+    if (!token) {
+      alert('You must be logged in.');
+      window.location.href = 'login.html';
+    }
+
+    // Load data every 10 seconds
+    function refreshData() {
+      loadVolunteers();
+      loadNeeds();
+    }
+
+    setInterval(refreshData, 10000);
+    window.onload = refreshData;
+
+    async function loadVolunteers() {
+      const res = await fetch('http://localhost:3000/volunteers', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const volunteers = await res.json();
+      const list = document.getElementById('volunteersList');
+      list.innerHTML = volunteers.map(v => `
+        <tr>
+          <td>${v.name}</td>
+          <td>${v.email}</td>
+          <td>${v.skills}</td>
+          <td>
+            <button onclick="deleteVolunteer('${v._id}')" class="btn btn-sm btn-danger">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteVolunteer(id) {
+      await fetch(`http://localhost:3000/volunteers/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      loadVolunteers();
+    }
+
+    async function loadNeeds() {
+      const res = await fetch('http://localhost:3000/needs', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const needs = await res.json();
+      const list = document.getElementById('needsList');
+      list.innerHTML = needs.map(n => `
+        <tr>
+          <td>${n.title}</td>
+          <td>${n.skills.join(', ')}</td>
+          <td>${n.date}</td>
+          <td>
+            <button onclick="deleteNeed('${n._id}')" class="btn btn-sm btn-danger">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteNeed(id) {
+      await fetch(`http://localhost:3000/needs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      loadNeeds();
+    }
+
+    document.getElementById('needsForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const skills = document.getElementById('skills').value.split(',').map(s => s.trim());
+      const date = document.getElementById('date').value;
+
+      await fetch('http://localhost:3000/needs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token
+        },
+        body: JSON.stringify({ title, skills, date })
+      });
+
+      e.target.reset();
+      loadNeeds();
+    });
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'login.html';
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+
